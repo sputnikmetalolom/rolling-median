@@ -44,6 +44,16 @@ struct ComplexAbs
 };
 
 template <typename T>
+ComplexAbs<T> operator+(const ComplexAbs<T>& a, const ComplexAbs<T>& b) {
+    return ComplexAbs<T>{a.value + b.value};
+}
+
+template <typename T>
+ComplexAbs<T> operator/(const ComplexAbs<T>& a, double divisor) {
+    return ComplexAbs<T>{a.value / divisor};
+}
+
+template <typename T>
 struct CompareAbs
 {
     bool operator()(const ComplexAbs<T>& a, const ComplexAbs<T>& b) const
@@ -51,15 +61,32 @@ struct CompareAbs
         return a.getAbs() < b.getAbs();
     }
 };
+template <typename T>
+struct CompareAbsEqual {
+    bool operator()(const ComplexAbs<T>& a, const ComplexAbs<T>& b) const {
+        return a.value == b.value;
+    }
+};
 
 template <typename T>
 using distribution = std::conditional_t<std::is_integral_v<T>,
                                         std::uniform_int_distribution<T>,
                                         std::uniform_real_distribution<T>>;
+using data_type = double;
+template<kallkod::Mode M = kallkod::Mode::Auto>
+using ComplexMedian = kallkod::RollingMedian<
+    ComplexAbs<data_type>,
+    5,
+    CompareAbs<data_type>,
+    CompareAbsEqual<data_type>,
+    M
+>;
+
 int main()
 {
-    using data_type = double;
-    kallkod::RollingMedian<ComplexAbs<data_type>, 5, CompareAbs<data_type>> median;
+    //ComplexMedian<> median; // uses Auto (default)
+    ComplexMedian<kallkod::Mode::Static> median_static;
+    ComplexMedian<kallkod::Mode::Dynamic> median_dynamic;
 
     std::initializer_list data = {
         ComplexAbs<data_type>{{1, 0}},
@@ -71,9 +98,9 @@ int main()
 
     for (const auto& d : data)
     {
-        median.update(d);
+        median_static.update(d);
     }
-    std::cout << "Median value: " << median.median().value << std::endl;
+    std::cout << "Median value: " << median_static.median().value << std::endl;
 
     constexpr int N = 4'000'000;
     std::vector<ComplexAbs<data_type>> numbers;
@@ -88,7 +115,7 @@ int main()
 
     for (const auto& d : numbers)
     {
-        median.update(d);
+        median_static.update(d);
     }
-    std::cout << "Median value: " << median.median().value << std::endl;
+    std::cout << "Median value: " << median_static.median().value << std::endl;
 }
