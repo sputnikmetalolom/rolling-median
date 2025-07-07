@@ -20,24 +20,22 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-
 #include "rolling_median.h"
 
 #include <complex>
 #include <initializer_list>
 #include <iostream>
 #include <random>
+#include <vector>
 
 template <typename T>
 struct ComplexAbs
 {
     explicit ComplexAbs(std::complex<T> const& z)
-        : value(z),
-        abs(std::abs(z))
-    {}
+        : value(z), abs(std::abs(z)) {}
     ComplexAbs() = default;
 
-    [[nodiscard]] T getAbs() const { return abs;}
+    [[nodiscard]] T getAbs() const { return abs; }
 
     std::complex<T> value{};
     T abs{};
@@ -56,37 +54,31 @@ ComplexAbs<T> operator/(const ComplexAbs<T>& a, double divisor) {
 template <typename T>
 struct CompareAbs
 {
-    bool operator()(const ComplexAbs<T>& a, const ComplexAbs<T>& b) const
-    {
-        return a.getAbs() < b.getAbs();
-    }
-};
-template <typename T>
-struct CompareAbsEqual {
     bool operator()(const ComplexAbs<T>& a, const ComplexAbs<T>& b) const {
-        return a.value == b.value;
+        return a.getAbs() < b.getAbs();
     }
 };
 
 template <typename T>
-using distribution = std::conditional_t<std::is_integral_v<T>,
+using Distribution = std::conditional_t<std::is_integral_v<T>,
                                         std::uniform_int_distribution<T>,
                                         std::uniform_real_distribution<T>>;
+
 using data_type = double;
-template<kallkod::Mode M = kallkod::Mode::Auto>
+
+template <kallkod::Mode M = kallkod::Mode::Auto>
 using ComplexMedian = kallkod::RollingMedian<
+    M,
     ComplexAbs<data_type>,
     5,
-    CompareAbs<data_type>,
-    CompareAbsEqual<data_type>,
-    M
+    CompareAbs<data_type>
 >;
 
 int main()
 {
-    //ComplexMedian<> median; // uses Auto (default)
-    ComplexMedian<kallkod::Mode::Static> median_static;
-    ComplexMedian<kallkod::Mode::Dynamic> median_dynamic;
+
+    // Static and Dynamic explicitly
+    ComplexMedian<kallkod::Mode::Dynamic> median;
 
     std::initializer_list data = {
         ComplexAbs<data_type>{{1, 0}},
@@ -98,9 +90,9 @@ int main()
 
     for (const auto& d : data)
     {
-        median_static.update(d);
+        median.update(d);
     }
-    std::cout << "Median value: " << median_static.median().value << std::endl;
+    std::cout << "Median value: " << median.median().value << std::endl;
 
     constexpr int N = 4'000'000;
     std::vector<ComplexAbs<data_type>> numbers;
@@ -108,14 +100,14 @@ int main()
 
     std::random_device rd;
     std::mt19937 gen(rd());
-    distribution<data_type> dist(-1'000'000, 1'000'000);
+    Distribution<data_type> dist(-1'000'000, 1'000'000);
     for (int i = 0; i < N; ++i) {
-        numbers.push_back(ComplexAbs<data_type>{{dist(gen), dist(gen)}});
+        numbers.emplace_back(std::complex<data_type>{dist(gen), dist(gen)});
     }
 
     for (const auto& d : numbers)
     {
-        median_static.update(d);
+        median.update(d);
     }
-    std::cout << "Median value: " << median_static.median().value << std::endl;
+    std::cout << "Median value: " << median.median().value << std::endl;
 }
